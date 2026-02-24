@@ -42,6 +42,7 @@ export default class NostrArticlePublishPlugin extends Plugin {
 			privateKey: "",
 			relayConfigurationEnabled: false,
 			relayURLs: DEFAULT_EXPLICIT_RELAY_URLS,
+			blossomServerURL: "",
 			statusBarEnabled: true
 		}, await this.loadData());
 	}

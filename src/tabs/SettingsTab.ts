@@ -55,6 +55,24 @@ export class SettingsTab extends PluginSettingTab {
 					})
 			)
 		// end private key
+		new Setting(containerEl)
+			.setName('Blossom Server URL')
+			.setDesc('URL of the Blossom server to connect to')
+			.addText((text: TextComponent) => {
+				text.setPlaceholder('https://blossom.server.com')
+				.setValue(this.plugin.configuration.blossomServerURL)
+				.onChange(async (value) => {
+					if (validateURL(value)) {
+						this.plugin.configuration.blossomServerURL = value;
+						await this.plugin.saveConfiguration();
+						new Notice("Blossom server URL saved!");
+					}else {
+						new Notice("The Blossom server URL is not valid");
+					}
+				});
+				text.inputEl.style.width = "400px";
+			})
+		;
 
 		// Configure relays
 		new Setting(containerEl)

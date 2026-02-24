@@ -29,11 +29,11 @@
 		"typescript": "^5.7.3"
 	},
 	"dependencies": {
-		"@noble/hashes": "^1.7.1",
-		"@noble/secp256k1": "^2.2.3",
+		"@noble/hashes": "^2.0.1",
+		"@noble/secp256k1": "^3.0.0",
 		"base64-arraybuffer": "^1.0.2",
 		"bech32": "^2.0.0",
-		"nostr-tools": "^2.10.4",
+		"nostr-tools": "^2.23.1",
 		"uuid": "^11.0.5"
 	}
 }
