@@ -141,7 +141,7 @@ export default class NostrService {
 		};
 
 		const hex = toHex(this.privateKey);
-		const finalEvent = finalizeEvent(note, Buffer.from(hex));
+		const finalEvent = finalizeEvent(note, Buffer.from(hex, "hex"));
 
 		const result = await this.publishingToRelays(finalEvent)
 

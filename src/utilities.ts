@@ -21,13 +21,14 @@ export function validatePrivateKey(key: string): boolean {
 }
 
 export function toHex(value: string): string {
-
 	if (value && value.startsWith("nsec")) {
 		const decodedPrivateKey = nip19.decode(value);
-		return decodedPrivateKey.data as string;
+		const bytes = decodedPrivateKey.data as Uint8Array;
+		return Array.from(bytes)
+			.map(b => b.toString(16).padStart(2, '0'))
+			.join('');
 	}
-
-  return value;
+	return value;
 }
 
 export function toUint8Array(hex: string): Uint8Array {

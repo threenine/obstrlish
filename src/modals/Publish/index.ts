@@ -1,16 +1,18 @@
 import {App, Modal, Notice, requestUrl, Setting, TextAreaComponent, TextComponent, TFile} from "obsidian";
 import NostrArticlePublishPlugin from "../../../main";
 import NostrService from "../../services/NostrService";
+import ImageUploadService from "../../services/ImageUploadService";
 import * as path from "node:path";
 
 
 export default class Publish extends Modal {
 	plugin: NostrArticlePublishPlugin;
-	private readonly UPLOAD_ENDPOINT = "https://media.geekiam.systems/";
+	private imageUploadService: ImageUploadService;
 
 	constructor(app: App, private nostrService: NostrService, private file: TFile, plugin: NostrArticlePublishPlugin) {
 		super(app);
 		this.plugin = plugin;
+		this.imageUploadService = new ImageUploadService(plugin);
 	}
 
 	async onOpen() {
@@ -79,15 +81,7 @@ export default class Publish extends Modal {
 									imagePreview.src = URL.createObjectURL(input.files[0]);
 									imagePreview.style.display = "block";
 									try {
-										const response = await requestUrl({
-											url: this.UPLOAD_ENDPOINT,
-											method: "POST",
-											headers: {
-												"Content-Type": getContentType(input.files[0].name),
-											},
-											body: await input.files[0].arrayBuffer()
-										})
-										featureImagePath = response.headers.location;
+										featureImagePath = await this.imageUploadService.uploadBinary(await input.files[0].arrayBuffer(), input.files[0].name);
 										featureImage = input.files[0];
 										imageNameDiv.textContent = input.files[0].name;
 
@@ -161,54 +155,54 @@ export default class Publish extends Modal {
 						btn.setButtonText("Publishing...")
 							.setDisabled(true);
 
-						if (featureImage === null || featureImage.name === "") {
-							new Notice("❌  A Feature Image is required. Please upload an image file for your article feature banner.")
-							btn.setButtonText("Publish")
-								.setDisabled(false);
-							return;
-						}
-						const imagePaths: string[] = [];
-						const vaultResolvedLinks = this.app.metadataCache.resolvedLinks;
-						if (vaultResolvedLinks[this.file.path]) {
-							const fileContents = vaultResolvedLinks[this.file.path];
-							for (const filePath of Object.keys(fileContents)) {
-								if (isImagePath(filePath)) {
-									imagePaths.push(filePath);
-								}
+						try {
+							if (featureImage === null || featureImage.name === "") {
+								new Notice("❌  A Feature Image is required. Please upload an image file for your article feature banner.")
+								btn.setButtonText("Publish")
+									.setDisabled(false);
+								return;
 							}
-						}
-
-						if (imagePaths.length > 0) {
-							for (const imagePath of imagePaths) {
-								const imageFile = this.app.vault.getAbstractFileByPath(imagePath);
-
-								if (imageFile instanceof TFile) {
-									const imageBinary = await this.app.vault.readBinary(imageFile);
-									try {
-										const response = await requestUrl({
-											url: this.UPLOAD_ENDPOINT,
-											method: "POST",
-											headers: {
-												"Content-Type": getContentType(imageFile.name),
-											},
-											body: imageBinary
-										})
-										doc.content = doc.content.replace(`![[${imagePath}]]`, `![](${response.headers.location}) `);
-
-									} catch (e) {
-										throw new Error(`Failed to upload image ${imagePath}`);
+							const imagePaths: string[] = [];
+							const vaultResolvedLinks = this.app.metadataCache.resolvedLinks;
+							if (vaultResolvedLinks[this.file.path]) {
+								const fileContents = vaultResolvedLinks[this.file.path];
+								for (const filePath of Object.keys(fileContents)) {
+									if (isImagePath(filePath)) {
+										imagePaths.push(filePath);
 									}
 								}
 							}
-						}
 
-						const result = await publish(this.nostrService, doc.content, this.file, summaryText.getValue(), featureImagePath, titleText.getValue(), articleTags);
+							if (imagePaths.length > 0) {
+								for (const imagePath of imagePaths) {
+									const imageFile = this.app.vault.getAbstractFileByPath(imagePath);
 
-						if (result) {
-							new Notice(`✅ Successfully published ${this.file.basename}`);
-							this.close();
-						} else {
-							new Notice(`❌ Publish Failed`);
+									if (imageFile instanceof TFile) {
+										try {
+											const imageUrl = await this.imageUploadService.uploadImage(imageFile);
+											doc.content = doc.content.split(`![[${imagePath}]]`).join(`![](${imageUrl}) `);
+											doc.content = doc.content.split(`![[${path.basename(imagePath)}]]`).join(`![](${imageUrl}) `);
+
+										} catch (e) {
+											throw new Error(`Failed to upload image ${imagePath}`);
+										}
+									}
+								}
+							}
+
+							const result = await publish(this.nostrService, doc.content, this.file, summaryText.getValue(), featureImagePath, titleText.getValue(), articleTags);
+
+							if (result) {
+								new Notice(`✅ Successfully published ${this.file.basename}`);
+								this.close();
+							} else {
+								new Notice(`❌ Publish Failed`);
+								btn.setButtonText("Publish")
+									.setDisabled(false);
+							}
+						} catch (error) {
+							console.error("Publishing error:", error);
+							new Notice(`❌ ${error.message}`);
 							btn.setButtonText("Publish")
 								.setDisabled(false);
 						}
